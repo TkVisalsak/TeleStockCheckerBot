@@ -189,7 +189,7 @@ def main():
     # Use webhook instead of polling
     application.run_webhook(
         listen="0.0.0.0",  # Listen on all IP addresses
-        port=int(os.getenv("PORT", 5000)),  # Bind to the required port
+        port=int(os.getenv("PORT", 10000)),  # Bind to the required port
         webhook_url=f"https://telestockcheckerbot.onrender.com/webhook"  # Replace with your Render app URL
     )
 
