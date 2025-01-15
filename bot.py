@@ -1,7 +1,6 @@
 import logging
 import os
-import json
-from telegram import Update
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackContext
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
@@ -18,25 +17,11 @@ logger = logging.getLogger(__name__)
 def authenticate_google_sheets():
     try:
         scope = ["https://www.googleapis.com/auth/drive.readonly", "https://www.googleapis.com/auth/spreadsheets.readonly"]
-
-        # Fetch credentials JSON from environment variable
-        creds_json = os.getenv("GOOGLE_SHEET_CREDENTIALS")
-        if not creds_json:
-            logger.error("Google Sheets credentials are not set. Please set the GOOGLE_SHEETS_CREDENTIALS_JSON environment variable.")
-            return None
-
-        creds_dict = json.loads(creds_json)
-        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+        creds = ServiceAccountCredentials.from_json_keyfile_name(os.getenv('GOOGLE_SHEET_CREDENTIALS'), scope)
         client = gspread.authorize(creds)
-
-        # Retrieve Google Sheet ID from environment variable
-        sheet_id = os.getenv('GOOGLE_SHEET_ID')
-        if not sheet_id:
-            logger.error("Google Sheets ID is not set. Please set the GOOGLE_SHEET_ID environment variable.")
-            return None
-
-        # Open the sheet by its ID
-        sheet = client.open_by_key(sheet_id).sheet1
+        
+        # Replace with your actual Google Sheet ID
+        sheet = client.open_by_key(os.getenv('GOOGLE_SHEET_ID')).sheet1
         return sheet
     except Exception as e:
         logger.error(f"Failed to authenticate with Google Sheets: {e}")
@@ -48,7 +33,7 @@ async def check_items(update: Update, context: CallbackContext):
         if not context.args:
             await update.message.reply_text("Please specify a quantity threshold (e.g., /check <20 or /check 30).")
             return
-
+        
         threshold_str = context.args[0]
         comparison = ""
         threshold = 0
@@ -67,7 +52,7 @@ async def check_items(update: Update, context: CallbackContext):
             except ValueError:
                 await update.message.reply_text("Invalid number provided.")
                 return
-
+        
         sheet = authenticate_google_sheets()
         if sheet is None:
             await update.message.reply_text("Sorry, there was an issue accessing the data.")
@@ -80,7 +65,7 @@ async def check_items(update: Update, context: CallbackContext):
             if len(row) < 3:
                 continue
             code, item, quantity = row.get('Code', ''), row.get('Item', ''), row.get('Quantity', '')
-
+            
             try:
                 quantity_int = int(quantity)
                 if comparison == "<" and quantity_int < threshold:
@@ -94,6 +79,7 @@ async def check_items(update: Update, context: CallbackContext):
             await update.message.reply_text(f"Items matching condition {comparison}{threshold}:\n" + "\n".join(matching_items))
         else:
             await update.message.reply_text(f"No items found matching condition {comparison}{threshold}.")
+    
     except Exception as e:
         await update.message.reply_text(f"An error occurred: {e}")
 
@@ -159,7 +145,6 @@ async def send_screenshot(update: Update, context: CallbackContext):
         return
 
     records = sheet.get_all_records()
-
     rows_per_image = 25
     chunks = [records[i:i + rows_per_image] for i in range(0, len(records), rows_per_image)]
 
@@ -167,13 +152,29 @@ async def send_screenshot(update: Update, context: CallbackContext):
         image = create_table_image(chunk)
         await update.message.reply_photo(photo=image)
 
-# Start command
+# Start command with inline buttons
 async def start(update: Update, context: CallbackContext):
-    await update.message.reply_text('Welcome! Use /screenshot to get a screenshot of the current inventory. Use /check <quantity> to check item quantities. Use /search <item_name> to search for an item.')
+    keyboard = [
+        [InlineKeyboardButton("Search Item", callback_data="search")],
+        [InlineKeyboardButton("Check Items", callback_data="check")],
+        [InlineKeyboardButton("Get Screenshot", callback_data="screenshot")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text('Welcome! Choose a command to start:', reply_markup=reply_markup)
+
+# Help command
+async def help(update: Update, context: CallbackContext):
+    help_text = (
+        "Here are the available commands:\n\n"
+        "/search <item_name> - Search for an item using fuzzy matching.\n"
+        "/check <quantity> - Check for items based on quantity (e.g., /check <10).\n"
+        "/screenshot - Get a screenshot of the current inventory."
+    )
+    await update.message.reply_text(help_text)
 
 # Main function to set up the bot
 def main():
-    bot_token = os.getenv("TELEGRAM_BOT_TOKEN")  # Get bot token from environment variable
+    bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
     if not bot_token:
         logger.error("Bot token is missing. Please set the TELEGRAM_BOT_TOKEN environment variable.")
         return
@@ -182,16 +183,12 @@ def main():
 
     # Add command handlers
     application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("help", help))
     application.add_handler(CommandHandler("screenshot", send_screenshot))
     application.add_handler(CommandHandler("check", check_items))
     application.add_handler(CommandHandler("search", search_item))
 
-    # Use webhook instead of polling
-    application.run_webhook(
-        listen="0.0.0.0",  # Listen on all IP addresses
-        port=int(os.getenv("PORT", 10000)),  # Bind to the required port
-        webhook_url=f"https://telestockcheckerbot.onrender.com/webhook"  # Replace with your Render app URL
-    )
+    application.run_polling()
 
 if __name__ == '__main__':
     main()
