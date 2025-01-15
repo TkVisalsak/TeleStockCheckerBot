@@ -94,7 +94,6 @@ async def check_items(update: Update, context: CallbackContext):
             await update.message.reply_text(f"Items matching condition {comparison}{threshold}:\n" + "\n".join(matching_items))
         else:
             await update.message.reply_text(f"No items found matching condition {comparison}{threshold}.")
-
     except Exception as e:
         await update.message.reply_text(f"An error occurred: {e}")
 
@@ -178,22 +177,21 @@ def main():
     if not bot_token:
         logger.error("Bot token is missing. Please set the TELEGRAM_BOT_TOKEN environment variable.")
         return
-      
-# Use webhook instead of polling
-application.run_webhook(
-    listen="0.0.0.0",
-    port=int(os.getenv("PORT", 5000)),  # Bind to the required port
-    webhook_url=f"https://<your-render-app-url>/webhook"
-)
 
     application = Application.builder().token(bot_token).build()
 
+    # Add command handlers
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("screenshot", send_screenshot))
     application.add_handler(CommandHandler("check", check_items))
     application.add_handler(CommandHandler("search", search_item))
 
-    application.run_polling()
+    # Use webhook instead of polling
+    application.run_webhook(
+        listen="0.0.0.0",  # Listen on all IP addresses
+        port=int(os.getenv("PORT", 5000)),  # Bind to the required port
+        webhook_url=f"https://<your-render-app-url>/webhook"  # Replace with your Render app URL
+    )
 
 if __name__ == '__main__':
     main()
