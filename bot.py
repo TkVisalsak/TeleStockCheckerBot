@@ -178,6 +178,13 @@ def main():
     if not bot_token:
         logger.error("Bot token is missing. Please set the TELEGRAM_BOT_TOKEN environment variable.")
         return
+      
+# Use webhook instead of polling
+application.run_webhook(
+    listen="0.0.0.0",
+    port=int(os.getenv("PORT", 5000)),  # Bind to the required port
+    webhook_url=f"https://<your-render-app-url>/webhook"
+)
 
     application = Application.builder().token(bot_token).build()
 
