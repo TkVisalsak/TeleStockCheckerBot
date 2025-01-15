@@ -190,7 +190,7 @@ def main():
     application.run_webhook(
         listen="0.0.0.0",  # Listen on all IP addresses
         port=int(os.getenv("PORT", 5000)),  # Bind to the required port
-        webhook_url=f"https://<your-render-app-url>/webhook"  # Replace with your Render app URL
+        webhook_url=f"https://telestockcheckerbot.onrender.com/webhook"  # Replace with your Render app URL
     )
 
 if __name__ == '__main__':
