@@ -181,17 +181,19 @@ def main():
 
     application = Application.builder().token(bot_token).build()
 
+    # Add command handlers
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("screenshot", send_screenshot))
     application.add_handler(CommandHandler("check", check_items))
     application.add_handler(CommandHandler("search", search_item))
 
+    # Run the bot using a webhook
     application.run_webhook(
-    listen="0.0.0.0",
-    port=int(os.getenv("PORT", 8443)),
-    url_path="webhook",
-    webhook_url=f"https://{os.getenv('https://telestockcheckerbot.onrender.com')}/webhook"
-)
+        listen="0.0.0.0",
+        port=int(os.getenv("PORT", 8443)),  # Default to port 8443
+        url_path="webhook",
+        webhook_url="https://telestockcheckerbot.onrender.com/webhook"  # Static webhook URL
+    )
 
 
 if __name__ == '__main__':
